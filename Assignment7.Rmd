@@ -1,0 +1,81 @@
+---
+title: "Assignment7"
+author: "Jessica Qian"
+date: "2026-11-22"
+output: html_document
+---
+
+```{r}
+library(fpp2)
+library(forecast)
+library(readxl)
+
+retail <- read_excel("/Users/jessicaqian/Downloads/RetailTradeData.xlsx",sheet = "Monthly")
+
+names(retail)
+dim(retail)
+head(retail, 10)
+sapply(retail, class)
+
+retail_ts <- ts(retail[[2]],frequency = 12,start = c(1992, 1))
+
+plot(retail_ts)
+ndiffs(retail_ts)
+tsdisplay(retail_ts)
+```
+```{r}
+trade_diff1 <- diff(retail_ts, differences = 1)
+
+plot(trade_diff1)
+tsdisplay(trade_diff1)
+nsdiffs(retail_ts)
+ndiffs(retail_ts)
+```
+
+
+```{r}
+trade_fit <- auto.arima(retail_ts,trace = TRUE,stepwise = FALSE)
+auto.arima(retail_ts)
+
+trade_fit
+attributes(trade_fit)
+```
+### "ARIMA(1,0,2)(0,1,1)[12] with drift" is selected for my time series. For the non-seasonal part, (1,0,2) means the model uses one autoregressive term, no regular differencing, and 2 moving-average terms. For the seasonal part, (0,1,1)[12] means the model uses both a seasonal difference and a seasonal moving-average for the 12-month cycle.
+
+### The AR coefficient is 0.9592, this shows that current retail trade values are highly related to recent past values. The drift is 2101.67, it shows an overall upward movement in the series over time.
+
+### The model has an AIC of 2346.84, AICc of 2347.66, and BIC of 2362.98. Usually lower values generally mean a better model. Overall, this model captures both the time dependence and yearly seasonality in the retail trade series.
+
+```{r}
+Acf(trade_fit$residuals)
+
+Box.test(residuals(trade_fit),lag = 20,type = "Ljung")
+
+plot.ts(residuals(trade_fit))
+
+hist(trade_fit$residuals)
+
+tsdiag(trade_fit)
+```
+### The residual plot shows that most errors move randomly around zero. There isn't really clear trend or repeating pattern. There are a few large positive and negative errors around 1995–1997, but the rest of the residuals are stable overall. This indicates the ARIMA model captures most of the pattern in the retail trade series.
+
+### The histogram is close to zero and most residuals are hovering near the middle. There are a few outliers on both sides, so the errors are not perfectly normal. But overall the distribution is reasonably balanced.
+
+### The ACF of the residuals shows that all lines are within the blue significance limits. This means there is very little autocorrelation left in the residuals, it's a good sign because the model captured most of the time-series pattern.
+
+### The Ljung-Box test gives a p-value of 0.7762, which is much grater than 0.05. This means we cannot find significant autocorrelation in the residuals. This supports the conclusion that the residuals are mostly random and the ARIMA model is a good fit for the data.
+
+### The tsdiag() plots also support the same conclusion. The standardized residuals are mostly close to zero, the residual ACF shows little remaining correlation. Overall, the residual suggests that the ARIMA model fits the retail trade time series relatively well.
+
+```{r}
+trade_forecast <- forecast(trade_fit, h = 5)
+trade_forecast
+
+plot(trade_forecast,main = "ARIMA Forecast of Retail Trade", xlab = "Time", ylab = "Retail Trade")
+```
+### The ARIMA model forecasts the next five months as approximately 573065 for February 2002, 548712 for March, 575231 for April, 588766 for May, and 646995 for June. The forecast is not flat because the model includes both trend and seasonality. The values decrease slightly in March, then increase through June, with June having the highest forecast at about 646995. The prediction intervals become slightly wider over time, this means the forecast becomes more uncertain further into the future. Overall, the model suggests that retail trade will continue its general upward pattern while still showing seasonal changes.
+
+```{r}
+accuracy(trade_fit) 
+```
+### The ARIMA model has a very strong accuracy. The RMSE is 9907.56 and the MAE is 6587.92, these number show that the forecast errors are pretty small compared with the overall level of the retail trade series. The MAPE is 1.58%, meaning the model is off by only around 1.6% on average. The MPE is -0.10% and the ME is 0.94, both numbers are very close to zero.These numbers show the model has almost no overall forecasting bias. Overall, the ARIMA model fits the historical retail trade data very well. The low MAPE and the residual analysis both support the conclusion that the model provides a strong fit and reliable short-term forecasts.
